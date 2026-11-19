@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>守護日常・安心對話轉盤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f0e6;
+  --paper:#fdfbf7;
+  --ink:#3d3a35;
+  --muted:#7d766b;
+  --btn:#c86d51;
+  --btn2:#ad563c;
+  --line:#e3dac9;
+  --accent:#5b7466;
+  --accent-bg:#ebf0ec;
+  --accent-line:#c8d4cd;
+  --gold:#b58e52;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  padding:32px 16px;
+  min-height:100vh;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(rgba(181,142,82,0.12) 1px, transparent 1px),
+    linear-gradient(180deg, #f7f3ea 0%, #efe8da 100%);
+  background-size: 20px 20px, 100% 100%;
+  color:var(--ink);
+  font-family:"Noto Sans TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  display:flex;
+  align-items:center;
+  flex-direction:column;
+}
+.header-tag{
+  font-size:11px;
+  letter-spacing:3px;
+  color:var(--gold);
+  border:1px solid #d9cbb3;
+  background:rgba(253,251,247,0.8);
+  padding:4px 14px;
+  border-radius:20px;
+  margin-bottom:10px;
+}
+h1{
+  font-family:"Noto Serif TC",serif;
+  font-weight:700;
+  letter-spacing:4px;
+  margin:0 0 8px;
+  color:var(--ink);
+  text-align:center;
+  font-size:clamp(22px, 4vw, 30px);
+}
+.subtitle{
+  color:var(--muted);
+  font-size:14px;
+  letter-spacing:1px;
+  margin:0 0 24px;
+  text-align:center;
+  position:relative;
+  padding-bottom:14px;
+}
+.subtitle::after{
+  content:"";
+  position:absolute;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:48px;
+  height:1.5px;
+  background:#cbbba0;
+}
+.container{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center}
+.wheel-section{display:flex;align-items:center;flex-direction:column;position:relative;width:min(480px,92vw)}
+.wheel-container{width:min(480px,92vw);height:min(480px,92vw);margin-top:16px;position:relative}
+canvas{
+  width:100%;
+  height:100%;
+  border:8px solid #fdfbf7;
+  border-radius:50%;
+  box-shadow:0 16px 36px rgba(61,58,53,0.12), inset 0 0 0 1px #e3dac9;
+}
+/* 文青書籤造型指針 */
+.pointer{
+  position:absolute;
+  top:0px;
+  left:50%;
+  transform:translateX(-50%);
+  width:24px;
+  height:36px;
+  background:var(--btn);
+  clip-path:polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+  z-index:2;
+  filter:drop-shadow(0 3px 5px rgba(61,58,53,0.22));
+}
+.pointer::after{
+  content:"";
+  position:absolute;
+  top:6px;
+  left:50%;
+  transform:translateX(-50%);
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#fdfbf7;
+}
+
+button{font:inherit;cursor:pointer;transition:all .2s ease}
+.spin{
+  margin-top:28px;
+  padding:14px 56px;
+  font-family:"Noto Serif TC",serif;
+  font-size:16.5px;
+  background:var(--btn);
+  color:#fdfbf7;
+  border:1px solid #b55c41;
+  border-radius:30px;
+  letter-spacing:3px;
+  font-weight:700;
+  box-shadow:0 6px 16px rgba(200,109,81,0.25);
+}
+.spin:hover:not(:disabled){background:var(--btn2);transform:translateY(-1px);box-shadow:0 8px 20px rgba(200,109,81,0.32)}
+.spin:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+.spin-counter{
+  margin-top:14px;
+  font-size:12.5px;
+  color:var(--muted);
+  letter-spacing:1px;
+}
+
+/* 抽中彈窗：明信片質感 */
+#modal{display:none;position:fixed;inset:0;background:rgba(46,43,38,0.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:18px;z-index:10}
+.modal-card{
+  width:min(430px,100%);
+  padding:34px 28px;
+  background:#fdfbf7;
+  border:1px solid #d9cbb3;
+  border-radius:12px;
+  text-align:center;
+  box-shadow:0 20px 48px rgba(46,43,38,0.22);
+  position:relative;
+}
+.modal-card::before{
+  content:"";
+  position:absolute;
+  inset:7px;
+  border:1px solid #e6dec8;
+  border-radius:8px;
+  pointer-events:none;
+}
+.modal-badge{
+  display:inline-block;
+  font-size:11px;
+  letter-spacing:2px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.modal-card h2{
+  border:0;
+  font-family:"Noto Serif TC",serif;
+  font-size:22px;
+  color:var(--btn);
+  margin:4px 0 6px;
+}
+.modal-card p{
+  color:var(--ink);
+  line-height:1.85;
+  overflow-wrap:anywhere;
+  font-size:15.5px;
+  margin:10px 0 18px;
+}
+.close{
+  position:relative;
+  z-index:1;
+  padding:10px 32px;
+  border:0;
+  border-radius:24px;
+  background:var(--accent);
+  color:#fdfbf7;
+  letter-spacing:2px;
+  font-weight:500;
+}
+.close:hover{background:#4b6155}
+@media(max-width:600px){
+  body{padding:22px 10px}
+}
+</style>
+</head>
+<body>
+<div class="header-tag">DAILY DIALOGUE WHEEL</div>
+<h1>🌿 守護日常・安心對話轉盤</h1>
+<p class="subtitle">在忙碌的服務日常裡，聊聊家訪小撇步，也照顧好自己。</p>
+
+<main class="container">
+<section class="wheel-section">
+  <div class="pointer"></div>
+  <div class="wheel-container"><canvas id="wheel" width="660" height="660"></canvas></div>
+  <button class="spin" id="spin">輕輕轉動</button>
+  <div class="spin-counter" id="spinCounter">本次已轉動 0 次</div>
+</section>
+</main>
+
+<div id="modal" role="dialog" aria-modal="true">
+<div class="modal-card">
+  <span class="modal-badge">TODAY'S PROMPT</span>
+  <h2 id="resultTitle">抽中結果</h2>
+  <p id="resultQuestion"></p>
+  <button class="close" id="close">收下這張小卡</button>
+</div>
+</div>
+
+<script>
+// Google Apps Script 紀錄與雲端題庫網址
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxshb80_eu7PsrMVta6x8QhJMKZHCoy3RY9rO4g3bH6XVdZlvQEewgOqY9oHwFO5P8/exec";
+
+// 10 組「復古莫蘭迪 × 暖陽自然」文青繽紛色盤
+const palette=[
+  "#E08A77", // 陶土珊瑚紅
+  "#E9C46A", // 麥穗暖黃
+  "#8AB17D", // 鼠尾草綠
+  "#76B5A0", // 湖畔薄荷綠
+  "#83A9C4", // 霧感晴空藍
+  "#B59EC9", // 乾燥薰衣草紫
+  "#E5A4AE", // 豆沙玫瑰粉
+  "#E6A168", // 焦糖杏橘
+  "#A9C27B", // 抹茶青綠
+  "#84B8C2"  // 煙燻冰川藍
+];
+
+// 預設題庫（當網路未連線或試算表尚未填寫題庫時作為備援）
+let items=[
+  {label:"家訪神隊友",question:"出門家訪或外勤時，你包包裡一定會帶的「安心小物」或必備物品是什麼？"},
+  {label:"安全小撇步",question:"進入陌生環境或案家訪視時，你有什麼觀察動線或保護自己的習慣？"},
+  {label:"家人神應援",question:"當工作忙碌或晚歸時，家人做過哪一件貼心事讓你覺得特別有力量？"},
+  {label:"情緒充電站",question:"遇到高張力或令人緊繃的服務情境後，你最喜歡用什麼方式幫自己「下班」與紓壓？"},
+  {label:"求救暗號",question:"如果訪視時覺得氣氛不對勁，你和團隊夥伴或督導之間有什麼默契或回報方式？"},
+  {label:"暖心抱抱",question:"辛苦了！請現場的家人或夥伴給你一個大大的擁抱或擊掌，感謝彼此每天的守護！"},
+  {label:"危機預警雷達",question:"當服務對象出現言語威脅、情緒失控或跟蹤等異常行為時，你會如何辨識危險訊號並採取預防措施？"},
+  {label:"安全撤退術",question:"當你在服務現場感覺受到威脅，甚至可能發生肢體衝突時，你會如何安全撤離並尋求協助？"},
+  {label:"同儕安全守護",question:"當你發現同事獨自訪視或執行勤務時可能面臨安全風險，你可以如何提供支持與協助？"},
+  {label:"增加復原力",question:"當你在工作上遇到瓶頸或經歷創傷時，工作場域中有哪些資源可以協助你調適、復原並重新出發？"}
+];
+
+const COUNT_STORAGE_KEY = "safe-dialogue-wheel-spin-count";
+const $=id=>document.getElementById(id);
+
+// 載入本機累計轉動次數
+let spinCount = 0;
+try {
+  const savedCount = parseInt(localStorage.getItem(COUNT_STORAGE_KEY) || "0", 10);
+  if (!isNaN(savedCount) && savedCount > 0) spinCount = savedCount;
+} catch (e) {}
+$("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
+
+// 從 Google 試算表「題庫」分頁抓取最新題目
+async function fetchCloudQuestions() {
+  if (!WEBHOOK_URL) return;
+  try {
+    const res = await fetch(WEBHOOK_URL);
+    if (!res.ok) return;
+    const cloudItems = await res.json();
+    if (Array.isArray(cloudItems) && cloudItems.length >= 2) {
+      items = cloudItems.map(it => ({
+        label: String(it.label || "").trim() || "未命名",
+        question: String(it.question || "").trim()
+      }));
+      draw(); // 抓到新題庫後立即重繪轉盤
+    }
+  } catch (err) {
+    console.warn("讀取雲端題庫失敗，使用內建預設題庫:", err);
+  }
+}
+
+// 背景靜默傳送轉動次數與抽中紀錄至 Google Sheets
+function logSpinToGoogleSheet(currentCount, itemTitle, itemQuestion) {
+  if (!WEBHOOK_URL) return;
+  try {
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        userName: `第 ${currentCount} 次轉動`,
+        itemTitle: itemTitle,
+        itemQuestion: itemQuestion
+      })
+    }).catch(err => console.warn("背景紀錄傳送失敗:", err));
+  } catch (e) {
+    console.warn("背景紀錄執行異常:", e);
+  }
+}
+
+const canvas=document.getElementById("wheel"),ctx=canvas.getContext("2d");
+let angle=0,spinning=false,raf=null;
+
+function draw(){
+  const size = canvas.width;
+  const center = size / 2;
+  const radius = 302;
+  const textRadius = 195;
+  ctx.clearRect(0,0,size,size);
+  const arc=2*Math.PI/items.length;
+
+  ctx.beginPath();
+  ctx.arc(center, center, radius + 16, 0, Math.PI * 2);
+  ctx.fillStyle = "#fdfbf7";
+  ctx.fill();
+
+  items.forEach((it,i)=>{
+    const a=angle+i*arc;
+    ctx.beginPath();ctx.moveTo(center,center);ctx.arc(center,center,radius,a,a+arc);ctx.closePath();
+    ctx.fillStyle=palette[i%palette.length];ctx.fill();
+    ctx.strokeStyle="#fdfbf7";ctx.lineWidth=3;ctx.stroke();
+
+    const dotAngle = a + arc / 2;
+    ctx.beginPath();
+    ctx.arc(center + Math.cos(dotAngle) * (radius - 14), center + Math.sin(dotAngle) * (radius - 14), 3.8, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(253,251,247,0.88)";
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(center+Math.cos(a+arc/2)*textRadius,center+Math.sin(a+arc/2)*textRadius);
+    ctx.rotate(a+arc/2+Math.PI/2);
+    ctx.fillStyle="#2f2c27";
+    ctx.font="600 18.5px 'Noto Sans TC', sans-serif";
+    let s=it.label||"未命名";
+    while(ctx.measureText(s).width>Math.max(48,arc*165)&&s.length>2)s=s.slice(0,-1);
+    if(s!==(it.label||"未命名"))s+="…";
+    ctx.fillText(s,-ctx.measureText(s).width/2,0);ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(center, center, radius - 26, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(253,251,247,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.beginPath();ctx.arc(center,center,40,0,Math.PI*2);ctx.fillStyle="#fdfbf7";ctx.fill();
+  ctx.strokeStyle="#cbbba0";ctx.lineWidth=2.5;ctx.stroke();
+  ctx.beginPath();ctx.arc(center,center,13,0,Math.PI*2);ctx.fillStyle="#c86d51";ctx.fill();
+}
+
+function easeOut(t){return 1-Math.pow(1-t,4)}
+
+function spin(){
+  if(spinning||items.length<2)return;
+
+  spinning=true;$("spin").disabled=true;
+  const start=performance.now(),duration=4300+Math.random()*900,initial=angle;
+  const extra=(5+Math.random()*4)*Math.PI*2+Math.random()*Math.PI*2;
+
+  function frame(now){
+    const p=Math.min(1,(now-start)/duration);angle=initial+extra*easeOut(p);draw();
+    if(p<1)raf=requestAnimationFrame(frame);
+    else{
+      spinning=false;$("spin").disabled=false;
+      const arc=2*Math.PI/items.length;
+      const pointerAngle=(Math.PI*1.5-angle%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+      const index=Math.floor(pointerAngle/arc)%items.length;
+      
+      const selectedTitle = items[index].label || "抽中選項";
+      const selectedQuestion = items[index].question || "尚未填寫題目";
+
+      spinCount += 1;
+      $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
+      try { localStorage.setItem(COUNT_STORAGE_KEY, String(spinCount)); } catch(e){}
+
+      // 自動寫入一筆轉動紀錄至 Google 試算表（無須修改原有的 Apps Script）
+      logSpinToGoogleSheet(spinCount, selectedTitle, selectedQuestion);
+
+      $("resultTitle").textContent = `✦ ${selectedTitle} ✦`;
+      $("resultQuestion").textContent = selectedQuestion;
+      $("modal").style.display="flex";
+    }
+  }
+  raf=requestAnimationFrame(frame);
+}
+
+$("spin").addEventListener("click",spin);
+$("close").addEventListener("click",()=>$("modal").style.display="none");
+$("modal").addEventListener("click",e=>{if(e.target===$("modal"))$("modal").style.display="none"});
+
+// 啟動時先繪製轉盤，並同步向 Google 試算表「題庫」分頁抓取最新題目
+draw();
+fetchCloudQuestions();
+</script>
+</body>
+</html>
