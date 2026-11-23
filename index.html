@@ -229,7 +229,6 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
   text-align:center;
 }
 .status-error{color:#b84a39}
-.status-success{color:var(--accent);font-weight:500}
 
 .modal-actions{
   position:relative;
@@ -263,6 +262,54 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
 }
 .btn-skip:hover:not(:disabled){background:#efe8da;color:var(--ink)}
 
+/* 送出完成・兌換便利貼憑證畫面 */
+#completeView{
+  display:none;
+  position:relative;
+  z-index:1;
+}
+.voucher-box{
+  background:var(--accent-bg);
+  border:1.5px dashed var(--accent);
+  border-radius:10px;
+  padding:20px 18px;
+  margin:10px 0 18px;
+}
+.voucher-stamp{
+  display:inline-block;
+  background:var(--accent);
+  color:#fdfbf7;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:2px;
+  padding:4px 14px;
+  border-radius:20px;
+  margin-bottom:12px;
+}
+.voucher-message{
+  font-family:"Noto Serif TC",serif;
+  font-size:15.5px;
+  line-height:1.85;
+  color:var(--ink);
+  margin:0 0 14px;
+  font-weight:500;
+}
+.voucher-hint{
+  background:#fdfbf7;
+  border:1px solid var(--accent-line);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13.5px;
+  color:var(--btn2);
+  font-weight:600;
+  line-height:1.6;
+}
+.voucher-meta{
+  margin-top:10px;
+  font-size:11.5px;
+  color:var(--muted);
+}
+
 @media(max-width:600px){
   body{padding:22px 10px}
   .modal-card{padding:24px 18px}
@@ -285,25 +332,49 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
 
 <div id="modal" role="dialog" aria-modal="true">
 <div class="modal-card">
-  <span class="modal-badge">TODAY'S PROMPT</span>
-  <h2 id="resultTitle">抽中結果</h2>
-  <p id="resultQuestion"></p>
+  <!-- 階段一：題目與填寫表單 -->
+  <div id="formView">
+    <span class="modal-badge">TODAY'S PROMPT</span>
+    <h2 id="resultTitle">抽中結果</h2>
+    <p id="resultQuestion"></p>
 
-  <div class="answer-form">
-    <div class="form-group">
-      <label for="userNameInput">你的稱呼 / 暱稱（選填，留空則為匿名夥伴）</label>
-      <input type="text" id="userNameInput" class="form-input" placeholder="例如：小陳、社工A..." maxlength="30">
+    <div class="answer-form">
+      <div class="form-group">
+        <label for="userNameInput">你的稱呼 / 暱稱（選填，留空則為匿名夥伴）</label>
+        <input type="text" id="userNameInput" class="form-input" placeholder="例如：小陳、社工A..." maxlength="30">
+      </div>
+      <div class="form-group">
+        <label for="userAnswerInput">寫下你的想法或小撇步 *</label>
+        <textarea id="userAnswerInput" class="form-textarea" placeholder="在這裡輸入你的回答，與團隊夥伴分享..." maxlength="500"></textarea>
+      </div>
+      <div id="formStatus" class="form-status"></div>
     </div>
-    <div class="form-group">
-      <label for="userAnswerInput">寫下你的想法或小撇步 *</label>
-      <textarea id="userAnswerInput" class="form-textarea" placeholder="在這裡輸入你的回答，與團隊夥伴分享..." maxlength="500"></textarea>
+
+    <div class="modal-actions">
+      <button class="btn-skip" id="close">暫不填寫</button>
+      <button class="btn-submit" id="submitBtn">送出並紀錄小卡</button>
     </div>
-    <div id="formStatus" class="form-status"></div>
   </div>
 
-  <div class="modal-actions">
-    <button class="btn-skip" id="close">暫不填寫</button>
-    <button class="btn-submit" id="submitBtn">送出並紀錄小卡</button>
+  <!-- 階段二：送出完成與兌換便利貼畫面 -->
+  <div id="completeView">
+    <span class="modal-badge">COMPLETED VOUCHER</span>
+    <h2 style="color:var(--accent);">✨ 感謝你的溫暖分享 ✨</h2>
+    
+    <div class="voucher-box">
+      <div class="voucher-stamp">✓ 填寫完成憑證</div>
+      <div class="voucher-message">
+        邀請您寫下自己的想法，並將答案貼在留言板，讓每一份經驗都被看見，讓彼此的分享成為支持與陪伴的力量。🌷
+      </div>
+      <div class="voucher-hint">
+        📌 請出示此畫面給現場工作人員<br>即可領取便利貼一張！
+      </div>
+      <div class="voucher-meta" id="voucherMeta"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-submit" id="finishBtn">領取完成，關閉小卡</button>
+    </div>
   </div>
 </div>
 </div>
@@ -346,7 +417,6 @@ try {
 } catch (e) {}
 $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
 
-// 暫存當前抽中的題目資訊
 let currentDraw = { title: "", question: "" };
 let isSubmitting = false;
 
@@ -384,7 +454,6 @@ async function submitAnswerToGoogleSheet() {
     return;
   }
 
-  // 記憶暱稱方便下次轉動免重填
   try {
     if (rawName) localStorage.setItem(NAME_STORAGE_KEY, rawName);
   } catch (e) {}
@@ -395,7 +464,6 @@ async function submitAnswerToGoogleSheet() {
   $("submitBtn").disabled = true;
   $("close").disabled = true;
   $("submitBtn").textContent = "紀錄傳送中...";
-  statusEl.className = "form-status";
   statusEl.textContent = "";
 
   try {
@@ -411,12 +479,16 @@ async function submitAnswerToGoogleSheet() {
       })
     });
 
-    statusEl.className = "form-status status-success";
-    statusEl.textContent = "✓ 已成功收進雲端紀錄本，感謝你的分享！";
+    // 格式化完成時間供工作人員確認
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    $("voucherMeta").textContent = `主題：${currentDraw.title} ｜ 完成時間：${timeStr}`;
 
-    setTimeout(() => {
-      closeModal();
-    }, 1100);
+    // 切換至完成兌換憑證畫面（不自動關閉，方便向工作人員出示）
+    $("formView").style.display = "none";
+    $("completeView").style.display = "block";
+    isSubmitting = false;
+
   } catch (err) {
     console.error("傳送失敗:", err);
     statusEl.className = "form-status status-error";
@@ -430,6 +502,9 @@ async function submitAnswerToGoogleSheet() {
 
 function closeModal() {
   $("modal").style.display = "none";
+  // 重置彈窗狀態回初始表單
+  $("formView").style.display = "block";
+  $("completeView").style.display = "none";
   $("userAnswerInput").value = "";
   $("formStatus").textContent = "";
   isSubmitting = false;
@@ -517,6 +592,8 @@ function spin(){
       $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
       try { localStorage.setItem(COUNT_STORAGE_KEY, String(spinCount)); } catch(e){}
 
+      $("formView").style.display = "block";
+      $("completeView").style.display = "none";
       $("resultTitle").textContent = `✦ ${currentDraw.title} ✦`;
       $("resultQuestion").textContent = currentDraw.question;
       $("modal").style.display="flex";
@@ -529,7 +606,14 @@ function spin(){
 $("spin").addEventListener("click",spin);
 $("submitBtn").addEventListener("click", submitAnswerToGoogleSheet);
 $("close").addEventListener("click", () => { if (!isSubmitting) closeModal(); });
-$("modal").addEventListener("click", e => { if (e.target === $("modal") && !isSubmitting) closeModal(); });
+$("finishBtn").addEventListener("click", closeModal);
+
+// 點擊背景遮罩時，只有在「尚未送出完成」的階段才允許誤觸關閉，避免憑證畫面不小心點掉
+$("modal").addEventListener("click", e => {
+  if (e.target === $("modal") && !isSubmitting && $("completeView").style.display !== "block") {
+    closeModal();
+  }
+});
 
 draw();
 fetchCloudQuestions();
