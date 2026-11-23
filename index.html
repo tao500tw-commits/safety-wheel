@@ -136,16 +136,17 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
 }
 
 /* 抽中彈窗：明信片質感 */
-#modal{display:none;position:fixed;inset:0;background:rgba(46,43,38,0.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:18px;z-index:10}
+#modal{display:none;position:fixed;inset:0;background:rgba(46,43,38,0.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:18px;z-index:10;overflow-y:auto}
 .modal-card{
-  width:min(430px,100%);
-  padding:34px 28px;
+  width:min(460px,100%);
+  padding:30px 26px;
   background:#fdfbf7;
   border:1px solid #d9cbb3;
   border-radius:12px;
   text-align:center;
   box-shadow:0 20px 48px rgba(46,43,38,0.22);
   position:relative;
+  margin:auto;
 }
 .modal-card::before{
   content:"";
@@ -165,31 +166,106 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
 .modal-card h2{
   border:0;
   font-family:"Noto Serif TC",serif;
-  font-size:22px;
+  font-size:21px;
   color:var(--btn);
-  margin:4px 0 6px;
+  margin:4px 0 8px;
 }
 .modal-card p{
   color:var(--ink);
-  line-height:1.85;
+  line-height:1.75;
   overflow-wrap:anywhere;
-  font-size:15.5px;
-  margin:10px 0 18px;
+  font-size:15px;
+  margin:8px 0 16px;
 }
-.close{
+
+/* 回饋表單區塊 */
+.answer-form{
   position:relative;
   z-index:1;
-  padding:10px 32px;
+  text-align:left;
+  background:#f7f3ea;
+  border:1px solid #e3dac9;
+  border-radius:8px;
+  padding:14px;
+  margin-bottom:16px;
+}
+.form-group{
+  margin-bottom:10px;
+}
+.form-group:last-child{
+  margin-bottom:0;
+}
+.form-group label{
+  display:block;
+  font-size:12.5px;
+  color:var(--muted);
+  margin-bottom:4px;
+  font-weight:500;
+}
+.form-input, .form-textarea{
+  width:100%;
+  padding:8px 12px;
+  border:1px solid #d6cbb8;
+  border-radius:6px;
+  background:#fdfbf7;
+  color:var(--ink);
+  font-family:inherit;
+  font-size:14px;
+  transition:border-color .2s;
+}
+.form-input:focus, .form-textarea:focus{
+  outline:none;
+  border-color:var(--accent);
+}
+.form-textarea{
+  resize:vertical;
+  min-height:84px;
+  line-height:1.5;
+}
+.form-status{
+  font-size:12.5px;
+  margin-top:8px;
+  min-height:18px;
+  text-align:center;
+}
+.status-error{color:#b84a39}
+.status-success{color:var(--accent);font-weight:500}
+
+.modal-actions{
+  position:relative;
+  z-index:1;
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.btn-submit{
+  padding:10px 26px;
   border:0;
   border-radius:24px;
   background:var(--accent);
   color:#fdfbf7;
-  letter-spacing:2px;
+  letter-spacing:1.5px;
   font-weight:500;
+  font-size:14.5px;
 }
-.close:hover{background:#4b6155}
+.btn-submit:hover:not(:disabled){background:#4b6155}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed}
+
+.btn-skip{
+  padding:10px 20px;
+  border:1px solid #d6cbb8;
+  border-radius:24px;
+  background:transparent;
+  color:var(--muted);
+  letter-spacing:1px;
+  font-size:14px;
+}
+.btn-skip:hover:not(:disabled){background:#efe8da;color:var(--ink)}
+
 @media(max-width:600px){
   body{padding:22px 10px}
+  .modal-card{padding:24px 18px}
 }
 </style>
 </head>
@@ -212,7 +288,23 @@ button{font:inherit;cursor:pointer;transition:all .2s ease}
   <span class="modal-badge">TODAY'S PROMPT</span>
   <h2 id="resultTitle">抽中結果</h2>
   <p id="resultQuestion"></p>
-  <button class="close" id="close">收下這張小卡</button>
+
+  <div class="answer-form">
+    <div class="form-group">
+      <label for="userNameInput">你的稱呼 / 暱稱（選填，留空則為匿名夥伴）</label>
+      <input type="text" id="userNameInput" class="form-input" placeholder="例如：小陳、社工A..." maxlength="30">
+    </div>
+    <div class="form-group">
+      <label for="userAnswerInput">寫下你的想法或小撇步 *</label>
+      <textarea id="userAnswerInput" class="form-textarea" placeholder="在這裡輸入你的回答，與團隊夥伴分享..." maxlength="500"></textarea>
+    </div>
+    <div id="formStatus" class="form-status"></div>
+  </div>
+
+  <div class="modal-actions">
+    <button class="btn-skip" id="close">暫不填寫</button>
+    <button class="btn-submit" id="submitBtn">送出並紀錄小卡</button>
+  </div>
 </div>
 </div>
 
@@ -222,16 +314,8 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxshb80_eu7PsrMVta6
 
 // 10 組「復古莫蘭迪 × 暖陽自然」文青繽紛色盤
 const palette=[
-  "#E08A77", // 陶土珊瑚紅
-  "#E9C46A", // 麥穗暖黃
-  "#8AB17D", // 鼠尾草綠
-  "#76B5A0", // 湖畔薄荷綠
-  "#83A9C4", // 霧感晴空藍
-  "#B59EC9", // 乾燥薰衣草紫
-  "#E5A4AE", // 豆沙玫瑰粉
-  "#E6A168", // 焦糖杏橘
-  "#A9C27B", // 抹茶青綠
-  "#84B8C2"  // 煙燻冰川藍
+  "#E08A77", "#E9C46A", "#8AB17D", "#76B5A0", "#83A9C4",
+  "#B59EC9", "#E5A4AE", "#E6A168", "#A9C27B", "#84B8C2"
 ];
 
 // 預設題庫（當網路未連線或試算表尚未填寫題庫時作為備援）
@@ -249,15 +333,22 @@ let items=[
 ];
 
 const COUNT_STORAGE_KEY = "safe-dialogue-wheel-spin-count";
+const NAME_STORAGE_KEY = "safe-dialogue-wheel-user-name";
 const $=id=>document.getElementById(id);
 
-// 載入本機累計轉動次數
+// 載入本機累計轉動次數與上次使用的暱稱
 let spinCount = 0;
 try {
   const savedCount = parseInt(localStorage.getItem(COUNT_STORAGE_KEY) || "0", 10);
   if (!isNaN(savedCount) && savedCount > 0) spinCount = savedCount;
+  const savedName = localStorage.getItem(NAME_STORAGE_KEY);
+  if (savedName) $("userNameInput").value = savedName;
 } catch (e) {}
 $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
+
+// 暫存當前抽中的題目資訊
+let currentDraw = { title: "", question: "" };
+let isSubmitting = false;
 
 // 從 Google 試算表「題庫」分頁抓取最新題目
 async function fetchCloudQuestions() {
@@ -271,30 +362,80 @@ async function fetchCloudQuestions() {
         label: String(it.label || "").trim() || "未命名",
         question: String(it.question || "").trim()
       }));
-      draw(); // 抓到新題庫後立即重繪轉盤
+      draw();
     }
   } catch (err) {
     console.warn("讀取雲端題庫失敗，使用內建預設題庫:", err);
   }
 }
 
-// 背景靜默傳送轉動次數與抽中紀錄至 Google Sheets
-function logSpinToGoogleSheet(currentCount, itemTitle, itemQuestion) {
-  if (!WEBHOOK_URL) return;
+// 送出答案與抽中紀錄至 Google Sheets
+async function submitAnswerToGoogleSheet() {
+  if (isSubmitting) return;
+
+  const answerText = $("userAnswerInput").value.trim();
+  const rawName = $("userNameInput").value.trim();
+  const statusEl = $("formStatus");
+
+  if (!answerText) {
+    statusEl.className = "form-status status-error";
+    statusEl.textContent = "請先寫下你的想法或回答再送出喔！";
+    $("userAnswerInput").focus();
+    return;
+  }
+
+  // 記憶暱稱方便下次轉動免重填
   try {
-    fetch(WEBHOOK_URL, {
+    if (rawName) localStorage.setItem(NAME_STORAGE_KEY, rawName);
+  } catch (e) {}
+
+  const displayName = rawName ? `${rawName} (第 ${spinCount} 次)` : `匿名夥伴 (第 ${spinCount} 次)`;
+
+  isSubmitting = true;
+  $("submitBtn").disabled = true;
+  $("close").disabled = true;
+  $("submitBtn").textContent = "紀錄傳送中...";
+  statusEl.className = "form-status";
+  statusEl.textContent = "";
+
+  try {
+    await fetch(WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
-        userName: `第 ${currentCount} 次轉動`,
-        itemTitle: itemTitle,
-        itemQuestion: itemQuestion
+        userName: displayName,
+        itemTitle: currentDraw.title,
+        itemQuestion: currentDraw.question,
+        userAnswer: answerText
       })
-    }).catch(err => console.warn("背景紀錄傳送失敗:", err));
-  } catch (e) {
-    console.warn("背景紀錄執行異常:", e);
+    });
+
+    statusEl.className = "form-status status-success";
+    statusEl.textContent = "✓ 已成功收進雲端紀錄本，感謝你的分享！";
+
+    setTimeout(() => {
+      closeModal();
+    }, 1100);
+  } catch (err) {
+    console.error("傳送失敗:", err);
+    statusEl.className = "form-status status-error";
+    statusEl.textContent = "網路連線似乎不穩，請再試一次。";
+    isSubmitting = false;
+    $("submitBtn").disabled = false;
+    $("close").disabled = false;
+    $("submitBtn").textContent = "送出並紀錄小卡";
   }
+}
+
+function closeModal() {
+  $("modal").style.display = "none";
+  $("userAnswerInput").value = "";
+  $("formStatus").textContent = "";
+  isSubmitting = false;
+  $("submitBtn").disabled = false;
+  $("close").disabled = false;
+  $("submitBtn").textContent = "送出並紀錄小卡";
 }
 
 const canvas=document.getElementById("wheel"),ctx=canvas.getContext("2d");
@@ -367,29 +508,29 @@ function spin(){
       const pointerAngle=(Math.PI*1.5-angle%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
       const index=Math.floor(pointerAngle/arc)%items.length;
       
-      const selectedTitle = items[index].label || "抽中選項";
-      const selectedQuestion = items[index].question || "尚未填寫題目";
+      currentDraw = {
+        title: items[index].label || "抽中選項",
+        question: items[index].question || "尚未填寫題目"
+      };
 
       spinCount += 1;
       $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
       try { localStorage.setItem(COUNT_STORAGE_KEY, String(spinCount)); } catch(e){}
 
-      // 自動寫入一筆轉動紀錄至 Google 試算表（無須修改原有的 Apps Script）
-      logSpinToGoogleSheet(spinCount, selectedTitle, selectedQuestion);
-
-      $("resultTitle").textContent = `✦ ${selectedTitle} ✦`;
-      $("resultQuestion").textContent = selectedQuestion;
+      $("resultTitle").textContent = `✦ ${currentDraw.title} ✦`;
+      $("resultQuestion").textContent = currentDraw.question;
       $("modal").style.display="flex";
+      setTimeout(() => $("userAnswerInput").focus(), 100);
     }
   }
   raf=requestAnimationFrame(frame);
 }
 
 $("spin").addEventListener("click",spin);
-$("close").addEventListener("click",()=>$("modal").style.display="none");
-$("modal").addEventListener("click",e=>{if(e.target===$("modal"))$("modal").style.display="none"});
+$("submitBtn").addEventListener("click", submitAnswerToGoogleSheet);
+$("close").addEventListener("click", () => { if (!isSubmitting) closeModal(); });
+$("modal").addEventListener("click", e => { if (e.target === $("modal") && !isSubmitting) closeModal(); });
 
-// 啟動時先繪製轉盤，並同步向 Google 試算表「題庫」分頁抓取最新題目
 draw();
 fetchCloudQuestions();
 </script>
