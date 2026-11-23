@@ -405,15 +405,19 @@ let items=[
 
 const COUNT_STORAGE_KEY = "safe-dialogue-wheel-spin-count";
 const NAME_STORAGE_KEY = "safe-dialogue-wheel-user-name";
+const DRAWN_STORAGE_KEY = "safe-dialogue-wheel-drawn-titles";
 const $=id=>document.getElementById(id);
 
-// 載入本機累計轉動次數與上次使用的暱稱
+// 載入本機累計轉動次數、上次暱稱、以及已抽過的題目清單
 let spinCount = 0;
+let drawnTitles = [];
 try {
   const savedCount = parseInt(localStorage.getItem(COUNT_STORAGE_KEY) || "0", 10);
   if (!isNaN(savedCount) && savedCount > 0) spinCount = savedCount;
   const savedName = localStorage.getItem(NAME_STORAGE_KEY);
   if (savedName) $("userNameInput").value = savedName;
+  const savedDrawn = JSON.parse(localStorage.getItem(DRAWN_STORAGE_KEY) || "[]");
+  if (Array.isArray(savedDrawn)) drawnTitles = savedDrawn;
 } catch (e) {}
 $("spinCounter").textContent = `本次已轉動 ${spinCount} 次`;
 
@@ -479,12 +483,10 @@ async function submitAnswerToGoogleSheet() {
       })
     });
 
-    // 格式化完成時間供工作人員確認
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     $("voucherMeta").textContent = `主題：${currentDraw.title} ｜ 完成時間：${timeStr}`;
 
-    // 切換至完成兌換憑證畫面（不自動關閉，方便向工作人員出示）
     $("formView").style.display = "none";
     $("completeView").style.display = "block";
     isSubmitting = false;
@@ -502,7 +504,6 @@ async function submitAnswerToGoogleSheet() {
 
 function closeModal() {
   $("modal").style.display = "none";
-  // 重置彈窗狀態回初始表單
   $("formView").style.display = "block";
   $("completeView").style.display = "none";
   $("userAnswerInput").value = "";
@@ -567,25 +568,79 @@ function draw(){
 
 function easeOut(t){return 1-Math.pow(1-t,4)}
 
+// 洗牌演算法（Fisher-Yates Shuffle），確保真隨機
+function pickNextIndex() {
+  // 找出尚未在本輪抽過的題目索引
+  let availableIndices = [];
+  items.forEach((it, idx) => {
+    if (!drawnTitles.includes(it.label)) {
+      availableIndices.push(idx);
+    }
+  });
+
+  // 如果全部題目都已經抽過一輪，就清空紀錄重新開始新的一輪（並避開上一題剛抽過的）
+  if (availableIndices.length === 0) {
+    const lastTitle = drawnTitles[drawnTitles.length - 1];
+    drawnTitles = [];
+    items.forEach((it, idx) => {
+      if (it.label !== lastTitle || items.length === 1) {
+        availableIndices.push(idx);
+      }
+    });
+  }
+
+  // 從可用題目中均等隨機挑選一個
+  const randPos = Math.floor(Math.random() * availableIndices.length);
+  const chosenIndex = availableIndices[randPos];
+
+  // 記錄已抽過並存入 localStorage
+  drawnTitles.push(items[chosenIndex].label);
+  try {
+    localStorage.setItem(DRAWN_STORAGE_KEY, JSON.stringify(drawnTitles));
+  } catch (e) {}
+
+  return chosenIndex;
+}
+
 function spin(){
   if(spinning||items.length<2)return;
 
   spinning=true;$("spin").disabled=true;
-  const start=performance.now(),duration=4300+Math.random()*900,initial=angle;
-  const extra=(5+Math.random()*4)*Math.PI*2+Math.random()*Math.PI*2;
+
+  // 1. 先從不重複題庫袋中選出目標索引，確保每題機率均等且一輪內不重複
+  const targetIndex = pickNextIndex();
+  const arc = 2 * Math.PI / items.length;
+
+  // 2. 計算讓指針 (位於正上方 Math.PI * 1.5) 精準停在 targetIndex 扇形中央附近的角度
+  // 加入 ±28% 扇形寬度的自然偏移，讓每次停下的位置有真實感但絕不會壓線
+  const jitter = (Math.random() - 0.5) * arc * 0.56;
+  const targetPointerAngle = (targetIndex + 0.5) * arc + jitter;
+  
+  // 目標最終餘數角度：滿足 (1.5*PI - finalAngle) ≡ targetPointerAngle (mod 2*PI)
+  const desiredMod = ((Math.PI * 1.5 - targetPointerAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  const currentMod = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  let deltaAngle = desiredMod - currentMod;
+  if (deltaAngle < 0) deltaAngle += Math.PI * 2;
+
+  // 加上整數圈數（6～8 圈），維持順暢且節奏一致的轉動體驗
+  const fullSpins = (6 + Math.floor(Math.random() * 3)) * Math.PI * 2;
+  const totalDelta = fullSpins + deltaAngle;
+
+  const start = performance.now();
+  const duration = 4200 + Math.random() * 600;
+  const initial = angle;
 
   function frame(now){
-    const p=Math.min(1,(now-start)/duration);angle=initial+extra*easeOut(p);draw();
+    const p=Math.min(1,(now-start)/duration);
+    angle=initial+totalDelta*easeOut(p);
+    draw();
     if(p<1)raf=requestAnimationFrame(frame);
     else{
       spinning=false;$("spin").disabled=false;
-      const arc=2*Math.PI/items.length;
-      const pointerAngle=(Math.PI*1.5-angle%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
-      const index=Math.floor(pointerAngle/arc)%items.length;
       
       currentDraw = {
-        title: items[index].label || "抽中選項",
-        question: items[index].question || "尚未填寫題目"
+        title: items[targetIndex].label || "抽中選項",
+        question: items[targetIndex].question || "尚未填寫題目"
       };
 
       spinCount += 1;
@@ -608,7 +663,6 @@ $("submitBtn").addEventListener("click", submitAnswerToGoogleSheet);
 $("close").addEventListener("click", () => { if (!isSubmitting) closeModal(); });
 $("finishBtn").addEventListener("click", closeModal);
 
-// 點擊背景遮罩時，只有在「尚未送出完成」的階段才允許誤觸關閉，避免憑證畫面不小心點掉
 $("modal").addEventListener("click", e => {
   if (e.target === $("modal") && !isSubmitting && $("completeView").style.display !== "block") {
     closeModal();
